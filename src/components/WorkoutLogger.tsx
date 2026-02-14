@@ -1,0 +1,792 @@
+import { useState, useEffect } from 'react';
+import { Plus, Minus, Save, RotateCcw, BookOpen, Star, X, Search } from 'lucide-react';
+import { Exercise, WorkoutSet, Workout, WorkoutTemplate } from '../types';
+import { formatDate } from '../utils/dateUtils';
+import { getExerciseMaxReps, getExerciseAverageReps } from '../utils/maxRepUtils';
+import DurationInput from './DurationInput';
+
+interface WorkoutLoggerProps {
+  exercises: Exercise[];
+  todaysWorkout: Workout | null;
+  workouts: Workout[];
+  templates: WorkoutTemplate[];
+  pendingTemplate?: WorkoutTemplate | null;
+  onSaveWorkout: (workout: Omit<Workout, 'id'>) => void;
+  onUpdateWorkout: (id: string, workout: Omit<Workout, 'id'>) => void;
+  onDeleteWorkout?: (id: string) => void;
+  onAddTemplate?: (template: Omit<WorkoutTemplate, 'id' | 'createdAt'>) => void;
+  onWorkoutDataChange?: (sets: Array<{ exerciseId: string; reps: number; duration?: string }>, notes: string) => void;
+  onTemplateClear?: () => void;
+}
+
+export function WorkoutLogger({
+  exercises,
+  todaysWorkout,
+  workouts,
+  templates,
+  pendingTemplate,
+  onSaveWorkout,
+  onUpdateWorkout,
+  onDeleteWorkout,
+  onAddTemplate,
+  onWorkoutDataChange,
+  onTemplateClear
+}: WorkoutLoggerProps) {
+  const [sets, setSets] = useState<Omit<WorkoutSet, 'id'>[]>([]);
+  const [notes, setNotes] = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [selectedCategory] = useState<Exercise['category'] | 'all'>('all');
+  const [showAddExercise, setShowAddExercise] = useState(false);
+  const [selectedExerciseId, setSelectedExerciseId] = useState('');
+  const [numberOfSets, setNumberOfSets] = useState(3);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const categories = [
+    { value: 'abs', label: 'Abs', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+    { value: 'arms', label: 'Arms', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+    { value: 'back', label: 'Back', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+    { value: 'cardio', label: 'Cardio', color: 'bg-red-100 text-red-800 border-red-200' },
+    { value: 'chest', label: 'Chest', color: 'bg-pink-100 text-pink-800 border-pink-200' },
+    { value: 'full-body', label: 'Full Body', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+    { value: 'legs', label: 'Legs', color: 'bg-green-100 text-green-800 border-green-200' },
+    { value: 'shoulders', label: 'Shoulders', color: 'bg-gray-300 text-gray-700 border-gray-400' }
+  ];
+
+  // Sort exercises alphabetically
+  const sortedExercises = [...exercises].sort((a, b) => a.name.localeCompare(b.name));
+
+  // Load template when pendingTemplate is set (takes priority)
+  useEffect(() => {
+    if (pendingTemplate) {
+      const templateSets: Omit<WorkoutSet, 'id'>[] = [];
+      pendingTemplate.exercises.forEach(templateExercise => {
+        for (let i = 0; i < templateExercise.sets; i++) {
+          templateSets.push({
+            exerciseId: templateExercise.exerciseId,
+            reps: 0, // Start with 0 reps to show placeholder
+            completedAt: new Date()
+          });
+        }
+      });
+
+      setSets(templateSets);
+      setNotes(`From template: ${pendingTemplate.name}`);
+
+      // Clear the pending template after loading
+      if (onTemplateClear) {
+        onTemplateClear();
+      }
+    }
+  }, [pendingTemplate, onTemplateClear]);
+
+  useEffect(() => {
+    // Only load today's workout if there's no pending template
+    if (todaysWorkout && !pendingTemplate) {
+      setSets(todaysWorkout.sets.map(set => ({
+        exerciseId: set.exerciseId,
+        reps: set.reps,
+        duration: set.duration,
+        completedAt: set.completedAt
+      })));
+      setNotes(todaysWorkout.notes || '');
+    }
+  }, [todaysWorkout, pendingTemplate]);
+
+  useEffect(() => {
+    if (sortedExercises.length > 0 && !selectedExerciseId) {
+      setSelectedExerciseId(sortedExercises[0].id);
+    }
+  }, [sortedExercises, selectedExerciseId]);
+
+  // Notify parent component when workout data changes (for autosave)
+  useEffect(() => {
+    if (onWorkoutDataChange) {
+      onWorkoutDataChange(sets, notes);
+    }
+  }, [sets, notes, onWorkoutDataChange]);
+
+  const addExerciseWithSets = () => {
+    if (!selectedExerciseId || numberOfSets < 1) return;
+
+    const newSets: Omit<WorkoutSet, 'id'>[] = [];
+    for (let i = 0; i < numberOfSets; i++) {
+      newSets.push({ exerciseId: selectedExerciseId, reps: 0, completedAt: new Date() }); // Start with 0 reps to show placeholder
+    }
+
+    setSets([...sets, ...newSets]);
+    setShowAddExercise(false);
+    setNumberOfSets(3); // Reset to default
+  };
+
+  const addSingleSet = (exerciseId?: string) => {
+    if (exerciseId) {
+      // Find the last index of this exercise in the sets array
+      let lastIndex = -1;
+      for (let i = sets.length - 1; i >= 0; i--) {
+        if (sets[i].exerciseId === exerciseId) {
+          lastIndex = i;
+          break;
+        }
+      }
+
+      // Insert the new set right after the last set of this exercise
+      const newSets = [...sets];
+      newSets.splice(lastIndex + 1, 0, { exerciseId, reps: 0, completedAt: new Date() });
+      setSets(newSets);
+    } else {
+      // Fallback for when no specific exercise is provided
+      const defaultExerciseId = (selectedCategory !== 'all'
+        ? sortedExercises.find(e => e.category === selectedCategory)?.id
+        : sortedExercises[0]?.id) || '';
+
+      setSets([...sets, { exerciseId: defaultExerciseId, reps: 0, completedAt: new Date() }]);
+    }
+  };
+
+  const updateSet = (index: number, field: keyof Omit<WorkoutSet, 'id'>, value: any) => {
+    const newSets = [...sets];
+    newSets[index] = { ...newSets[index], [field]: value };
+    setSets(newSets);
+  };
+
+  const removeSet = (index: number) => {
+    setSets(sets.filter((_, i) => i !== index));
+  };
+
+  const handleSave = () => {
+    if (sets.length === 0) return;
+
+    const workout: Omit<Workout, 'id'> = {
+      date: new Date(),
+      sets: sets.map(set => ({
+        ...set,
+        id: crypto.randomUUID()
+      })),
+      notes: notes.trim() || undefined
+    };
+
+    if (todaysWorkout) {
+      onUpdateWorkout(todaysWorkout.id, workout);
+    } else {
+      onSaveWorkout(workout);
+    }
+
+    // Reset form
+    setSets([]);
+    setNotes('');
+  };
+
+  const resetWorkout = () => {
+    if (todaysWorkout && onDeleteWorkout) {
+      onDeleteWorkout(todaysWorkout.id);
+    }
+    setSets([]);
+    setNotes('');
+  };
+
+  const useTemplate = (template: WorkoutTemplate) => {
+    const templateSets: Omit<WorkoutSet, 'id'>[] = [];
+    template.exercises.forEach(templateExercise => {
+      for (let i = 0; i < templateExercise.sets; i++) {
+        templateSets.push({
+          exerciseId: templateExercise.exerciseId,
+          reps: 0, // Start with 0 reps to show placeholder
+          completedAt: new Date()
+        });
+      }
+    });
+
+    setSets(templateSets);
+    setShowTemplates(false);
+  };
+
+  const handleSaveAsTemplate = () => {
+    if (!templateName.trim() || sets.length === 0 || !onAddTemplate) return;
+
+    // Group sets by exercise and count them
+    const exerciseCounts = new Map<string, number>();
+    sets.forEach(set => {
+      exerciseCounts.set(set.exerciseId, (exerciseCounts.get(set.exerciseId) || 0) + 1);
+    });
+
+    // Convert to template format
+    const templateExercises = Array.from(exerciseCounts.entries()).map(([exerciseId, count]) => ({
+      exerciseId,
+      sets: count
+    }));
+
+    onAddTemplate({
+      name: templateName.trim(),
+      exercises: templateExercises
+    });
+
+    setTemplateName('');
+    setShowSaveTemplate(false);
+  };
+
+  const getStatsForSet = (exerciseId: string, setPosition: number) => {
+    const threeMonthMax = getExerciseMaxReps(workouts, exerciseId, '3months');
+    const threeMonthAvg = getExerciseAverageReps(workouts, exerciseId, '3months');
+
+    const threeMonthMaxRecord = threeMonthMax.find(record => record.setPosition === setPosition);
+    const threeMonthAvgRecord = threeMonthAvg.find(record => record.setPosition === setPosition);
+
+    return {
+      max: threeMonthMaxRecord?.maxReps || 0,
+      average: threeMonthAvgRecord?.averageReps || 0
+    };
+  };
+
+  const getSetPositionForExercise = (exerciseId: string, currentIndex: number) => {
+    // Count how many sets of this exercise come before the current index
+    let position = 1;
+    for (let i = 0; i < currentIndex; i++) {
+      if (sets[i].exerciseId === exerciseId) {
+        position++;
+      }
+    }
+    return position;
+  };
+
+
+
+  const getCategoryStyle = (category: Exercise['category']) => {
+    return categories.find(c => c.value === category)?.color || 'bg-solarized-base1/10 text-solarized-base01 border-solarized-base1/20';
+  };
+
+  const getCategoryBackgroundStyle = (category: Exercise['category']) => {
+    const categoryConfig = categories.find(c => c.value === category);
+    if (!categoryConfig) return 'bg-solarized-base2 border-solarized-base1';
+
+    switch (category) {
+      case 'abs':
+        return 'bg-[#FFE6A9] border-[#FFE6A9]';
+      case 'legs':
+        return 'bg-[#A7C1A8] border-[#A7C1A8]';
+      case 'arms':
+        return 'bg-[#9EC6F3] border-[#9EC6F3]';
+      case 'back':
+        return 'bg-[#898AC4] border-[#898AC4]';
+      case 'shoulders':
+        return 'bg-[#E5E0D8] border-[#E5E0D8]';
+      case 'chest':
+        return 'bg-[#D1D8BE] border-[#D1D8BE]';
+      case 'cardio':
+        return 'bg-[#819A91] border-[#819A91]';
+      case 'full-body':
+        return 'bg-[#E5989B] border-[#E5989B]';
+      default:
+        return 'bg-solarized-base2 border-solarized-base1';
+    }
+  };
+
+  const getPlaceholderText = (exerciseId: string, setPosition: number) => {
+    const exercise = sortedExercises.find(e => e.id === exerciseId);
+
+    // Get stats for this set position
+    const stats = getStatsForSet(exerciseId, setPosition);
+    const hasMax = stats.max !== 0 && stats.max !== undefined;
+    const hasAverage = stats.average !== 0 && stats.average !== undefined;
+
+    if (exercise?.exerciseType === 'time') {
+      // For time exercises, stats.max and stats.average are in seconds (from getExerciseMaxReps/AverageReps, 
+      // which we need to make sure handle time exercises correctly or we need separate utils)
+
+      // Wait, getExerciseMaxReps/AverageReps currently return "reps" and assume number.
+      // We should check how those are implemented. 
+      // Looking at the imports in WorkoutLogger.tsx: import { getExerciseMaxReps, getExerciseAverageReps } from '../utils/maxRepUtils';
+      // I need to update maxRepUtils.ts to handle 'duration' if it doesn't already, OR handle it here manually.
+      // Let's verify maxRepUtils in a moment. For now, let's assume we need to calculate it here or fetch differently.
+
+      // Actually, let's calculate it here for now to be safe and explicit, similar to the original plan.
+
+      const relevantWorkouts = workouts.filter(w =>
+        w.sets.some(s => s.exerciseId === exerciseId)
+      );
+
+      const durationsAtPosition: number[] = [];
+
+      relevantWorkouts.forEach(workout => {
+        const exerciseSets = workout.sets.filter(s => s.exerciseId === exerciseId);
+        if (exerciseSets[setPosition - 1]) { // setPosition is 1-based
+          const durationStr = exerciseSets[setPosition - 1].duration;
+          if (durationStr) {
+            // import durationToSeconds if not available or assume it is
+            // It is imported from '../utils/durationUtils' in other files, let's check imports in this file.
+            // It is NOT imported in WorkoutLogger.tsx currently (checked file content previously).
+            // I'll need to add the import.
+            // For now, I'll use a helper or modify imports in a separate step? 
+            // No, I can add the import in the top as well.
+            // Wait, I can't edit multiple distinct parts easily with one replace_file_content unless I take the whole file.
+            // I'll stick to modifying this function and assuming I'll add the import in a previous or subsequent step?
+            // Actually, I should probably do it in one go if possible, or multiple steps.
+            // I'll add the import first in a separate tool call to be safe? 
+            // No, I'll calculate it manually or assume standard format for now.
+            // Or better: I will calculate it right here.
+            const [mins, secs] = durationStr.split(':').map(Number);
+            if (!isNaN(mins) && !isNaN(secs)) {
+              durationsAtPosition.push(mins * 60 + secs);
+            }
+          }
+        }
+      });
+
+      if (durationsAtPosition.length === 0) return '00:00';
+
+      const maxSeconds = Math.max(...durationsAtPosition);
+      const avgSeconds = Math.round(durationsAtPosition.reduce((a, b) => a + b, 0) / durationsAtPosition.length);
+
+      const format = (secs: number) => {
+        const m = Math.floor(secs / 60);
+        const s = secs % 60;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      };
+
+      return `↑${format(maxSeconds)} ⌀${format(avgSeconds)}`;
+    }
+
+    // Reps handling (unchanged)
+    const parts = [];
+
+    const formatStatValue = (value: number) => {
+      const rounded = Math.round(value * 10) / 10;
+      return Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1);
+    };
+
+    if (hasMax) {
+      parts.push(`↑${formatStatValue(stats.max)}`);
+    }
+    if (hasAverage) {
+      parts.push(`⌀${formatStatValue(stats.average)}`);
+    }
+
+    return parts.length > 0 ? parts.join(' ') : 'Enter reps';
+  };
+
+  const incrementSets = () => {
+    setNumberOfSets(prev => Math.min(prev + 1, 10));
+  };
+
+  const decrementSets = () => {
+    setNumberOfSets(prev => Math.max(prev - 1, 1));
+  };
+
+  const filteredExercises = selectedCategory === 'all'
+    ? sortedExercises
+    : sortedExercises.filter(ex => ex.category === selectedCategory);
+
+  // Further filter by search query
+  const searchFilteredExercises = searchQuery.trim()
+    ? filteredExercises.filter(ex =>
+      ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (ex.description && ex.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      categories.find(c => c.value === ex.category)?.label.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    : filteredExercises;
+
+  // Auto-select exercise when search results in a single match
+  useEffect(() => {
+    if (searchFilteredExercises.length === 1 && searchQuery.trim()) {
+      setSelectedExerciseId(searchFilteredExercises[0].id);
+    } else if (searchFilteredExercises.length > 0 && !searchFilteredExercises.find(ex => ex.id === selectedExerciseId)) {
+      // If current selection is not in filtered results, select the first one
+      setSelectedExerciseId(searchFilteredExercises[0].id);
+    }
+  }, [searchFilteredExercises, searchQuery, selectedExerciseId]);
+
+  // Group consecutive sets by exercise
+  const groupedSets = () => {
+    const groups: Array<{
+      exerciseId: string;
+      exercise: Exercise | undefined;
+      sets: Array<{ set: Omit<WorkoutSet, 'id'>; originalIndex: number; setNumber: number }>;
+    }> = [];
+
+    let currentGroup: typeof groups[0] | null = null;
+    let exerciseSetCounts = new Map<string, number>();
+
+    sets.forEach((set, index) => {
+      const exercise = sortedExercises.find(e => e.id === set.exerciseId);
+      const setNumber = (exerciseSetCounts.get(set.exerciseId) || 0) + 1;
+      exerciseSetCounts.set(set.exerciseId, setNumber);
+
+      if (!currentGroup || currentGroup.exerciseId !== set.exerciseId) {
+        // Start a new group
+        currentGroup = {
+          exerciseId: set.exerciseId,
+          exercise,
+          sets: []
+        };
+        groups.push(currentGroup);
+      }
+
+      currentGroup.sets.push({ set, originalIndex: index, setNumber });
+    });
+
+    return groups;
+  };
+
+  if (sortedExercises.length === 0) {
+    return (
+      <div className="p-6 pb-24 bg-solarized-base3 min-h-screen">
+        <div className="text-center py-12">
+          <p className="text-solarized-base01 mb-4">No exercises available</p>
+          <p className="text-sm text-solarized-base1">Add some exercises first to start logging workouts</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-3 sm:p-6 pb-32 space-y-6 bg-solarized-base3 min-h-screen">
+      {/* Workout Header */}
+      <div className="bg-solarized-base2 rounded-xl p-4 sm:p-6 shadow-lg border border-solarized-base1">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-solarized-base02">
+            {formatDate(new Date())}
+          </h2>
+        </div>
+
+        {todaysWorkout && (
+          <div className="bg-solarized-green/10 p-3 rounded-lg mb-4 border border-solarized-green/20">
+            <p className="text-sm text-solarized-base02">
+              You've already logged a workout today. You can continue adding sets or update your existing workout.
+            </p>
+          </div>
+        )}
+
+        {/* Template and Save Actions */}
+        <div className="flex gap-3 flex-wrap">
+          <button
+            onClick={() => setShowTemplates(!showTemplates)}
+            className="bg-solarized-violet text-solarized-base3 border-none py-3 px-4 rounded-lg cursor-pointer text-sm font-semibold transition-all duration-200 ease-in-out hover:bg-solarized-violet/90 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 min-h-12"
+          >
+            <BookOpen size={18} />
+            Use Template
+          </button>
+
+          {sets.length > 0 && onAddTemplate && (
+            <button
+              onClick={() => setShowSaveTemplate(!showSaveTemplate)}
+              className="bg-solarized-yellow text-solarized-base3 border-none py-3 px-4 rounded-lg cursor-pointer text-sm font-semibold transition-all duration-200 ease-in-out hover:bg-solarized-yellow/90 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 min-h-12"
+            >
+              <Star size={18} />
+              Save Template
+            </button>
+          )}
+        </div>
+
+        {showTemplates && (
+          <div className="mt-4 p-4 bg-solarized-base1/10 rounded-lg border border-solarized-base1/20">
+            <h4 className="font-medium text-solarized-base02 mb-3">Choose a template:</h4>
+            {templates.length === 0 ? (
+              <p className="text-solarized-base01 text-sm">No templates available. Create one in the Templates tab.</p>
+            ) : (
+              <div className="space-y-2">
+                {templates.map(template => (
+                  <button
+                    key={template.id}
+                    onClick={() => useTemplate(template)}
+                    className="w-full text-left p-3 bg-solarized-base3 rounded-lg hover:bg-solarized-violet/10 border border-solarized-base1 hover:border-solarized-violet/20 transition-colors"
+                  >
+                    <div className="font-medium text-solarized-base02">{template.name}</div>
+                    <div className="text-sm text-solarized-base01">
+                      {template.exercises.length} exercises, {template.exercises.reduce((total, ex) => total + ex.sets, 0)} total sets
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {showSaveTemplate && (
+          <div className="mt-4 p-4 bg-solarized-yellow/10 rounded-lg border border-solarized-yellow/20">
+            <h4 className="font-medium text-solarized-base02 mb-3">Save current workout as template:</h4>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Template name (e.g., Today's Workout)"
+                className="w-full p-3 border border-solarized-base1 rounded-lg focus:ring-2 focus:ring-solarized-yellow focus:border-transparent bg-solarized-base3 text-solarized-base02"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveAsTemplate}
+                  disabled={!templateName.trim()}
+                  className="flex-1 bg-solarized-yellow text-solarized-base3 border-none py-3 px-4 rounded-lg cursor-pointer font-semibold transition-all duration-200 ease-in-out hover:bg-solarized-yellow/90 hover:-translate-y-0.5 active:translate-y-0 disabled:bg-solarized-base1 disabled:cursor-not-allowed disabled:text-solarized-base01 disabled:hover:translate-y-0 min-h-12"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSaveTemplate(false);
+                    setTemplateName('');
+                  }}
+                  className="flex-1 bg-solarized-base1 text-solarized-base02 border-none py-3 px-4 rounded-lg cursor-pointer font-semibold transition-all duration-200 ease-in-out hover:bg-solarized-base0 hover:-translate-y-0.5 active:translate-y-0 min-h-12"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Grouped Sets */}
+      <div className="space-y-4">
+        {groupedSets().map((group, groupIndex) => (
+          <div key={`${group.exerciseId}-${groupIndex}`} className={`rounded-xl p-3 sm:p-4 shadow-lg border ${group.exercise ? getCategoryBackgroundStyle(group.exercise.category) : 'bg-solarized-base2 border-solarized-base1'
+            }`}>
+            {/* Exercise Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h3 className="font-semibold text-solarized-base02 text-lg">
+                  {group.exercise?.name || 'Unknown Exercise'}
+                </h3>
+                {group.exercise && (
+                  <span className={`text-xs px-2 py-1 rounded-full border ${getCategoryStyle(group.exercise.category)}`}>
+                    {categories.find(c => c.value === group.exercise!.category)?.label}
+                  </span>
+                )}
+              </div>
+              <span className="text-sm text-solarized-base01 bg-solarized-base1/20 px-3 py-1 rounded-full whitespace-nowrap">
+                {group.sets.length} set{group.sets.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {/* Sets for this exercise */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {group.sets.map(({ set, originalIndex, setNumber }) => {
+                const setPosition = getSetPositionForExercise(set.exerciseId, originalIndex);
+                const isTimeExercise = group.exercise?.exerciseType === 'time';
+
+                return (
+                  <div key={originalIndex} className="bg-solarized-base1/10 rounded-lg p-2 border border-solarized-base1/20">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-solarized-base02">
+                        Set {setNumber}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => removeSet(originalIndex)}
+                          className="p-0.5 text-solarized-red hover:bg-solarized-red/10 rounded"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {isTimeExercise ? (
+                      <DurationInput
+                        value={set.duration || ''}
+                        onChange={(value) => updateSet(originalIndex, 'duration', value)}
+                        placeholder={getPlaceholderText(set.exerciseId, setPosition)}
+                        className="text-2xl font-bold placeholder:text-lg placeholder:font-normal placeholder:text-gray-400"
+                      />
+                    ) : (
+                      <input
+                        type="number"
+                        step="1"
+                        value={set.reps || ''}
+                        onChange={(e) => updateSet(originalIndex, 'reps', parseFloat(e.target.value) || 0)}
+                        placeholder={getPlaceholderText(set.exerciseId, setPosition)}
+                        className="w-full p-2 border border-solarized-base1 rounded-lg focus:ring-2 focus:ring-solarized-blue focus:border-transparent text-2xl font-bold bg-solarized-base3 text-solarized-base02 placeholder-gray-400 placeholder:text-lg placeholder:font-normal text-center"
+                        min="0"
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            const currentValue = parseFloat(e.currentTarget.value) || 0;
+                            updateSet(originalIndex, 'reps', currentValue + 1);
+                          } else if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            const currentValue = parseFloat(e.currentTarget.value) || 0;
+                            updateSet(originalIndex, 'reps', Math.max(0, currentValue - 1));
+                          }
+                        }}
+                        inputMode="decimal"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add another set of this exercise */}
+            <button
+              onClick={() => addSingleSet(group.exerciseId)}
+              className="w-full mt-3 bg-solarized-base3/50 text-solarized-base02 border border-solarized-base1/30 py-2 px-4 rounded-lg cursor-pointer font-medium transition-all duration-200 ease-in-out hover:bg-solarized-base3 hover:border-solarized-base1/50 flex items-center justify-center gap-2"
+            >
+              <Plus size={16} />
+              Add Another Set
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Add Exercise Button - Always at bottom after all sets */}
+      {!showAddExercise ? (
+        <button
+          onClick={() => setShowAddExercise(true)}
+          className="w-full bg-solarized-blue text-solarized-base3 border-none py-3 px-4 rounded-lg cursor-pointer font-semibold transition-all duration-200 ease-in-out hover:bg-solarized-blue/90 hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 min-h-12"
+        >
+          <Plus size={20} />
+          Add Exercise
+        </button>
+      ) : (
+        <div className="bg-solarized-base2 rounded-xl p-4 shadow-lg border border-solarized-base1">
+          <div className="space-y-4">
+            {/* Search Bar */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search size={20} className="text-solarized-base01" />
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search exercises..."
+                className="w-full pl-10 pr-4 py-3 border border-solarized-base1 rounded-lg focus:ring-2 focus:ring-solarized-blue focus:border-transparent bg-solarized-base3 text-solarized-base02 placeholder-solarized-base01"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  <X size={16} className="text-solarized-base01 hover:text-solarized-base02" />
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-solarized-base01 mb-2">
+                  Exercise
+                </label>
+                <select
+                  value={selectedExerciseId}
+                  onChange={(e) => setSelectedExerciseId(e.target.value)}
+                  className="w-full p-3 border border-solarized-base1 rounded-lg focus:ring-2 focus:ring-solarized-blue focus:border-transparent bg-solarized-base3 text-solarized-base02"
+                >
+                  {searchQuery ? (
+                    // When searching, show all matching exercises without category grouping
+                    searchFilteredExercises.length > 0 ? (
+                      searchFilteredExercises.map(exercise => (
+                        <option key={exercise.id} value={exercise.id}>
+                          {exercise.name} ({categories.find(c => c.value === exercise.category)?.label})
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>No exercises found matching "{searchQuery}"</option>
+                    )
+                  ) : (
+                    // When not searching, show grouped by category
+                    categories.map(category => {
+                      const categoryExercises = searchFilteredExercises.filter(ex => ex.category === category.value);
+                      if (categoryExercises.length === 0) return null;
+
+                      return (
+                        <optgroup key={category.value} label={category.label}>
+                          {categoryExercises.map(exercise => (
+                            <option key={exercise.id} value={exercise.id}>
+                              {exercise.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      );
+                    })
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-solarized-base01 mb-2">
+                  Number of Sets
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={decrementSets}
+                    className="bg-solarized-base1/30 text-solarized-base01 border-none p-2 rounded-lg cursor-pointer transition-all duration-200 ease-in-out hover:bg-solarized-base1/50 hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    <Minus size={16} />
+                  </button>
+                  <input
+                    type="number"
+                    value={numberOfSets}
+                    onChange={(e) => setNumberOfSets(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                    className="flex-1 p-3 border border-solarized-base1 rounded-lg focus:ring-2 focus:ring-solarized-blue focus:border-transparent bg-solarized-base3 text-solarized-base02 text-center"
+                    min="1"
+                    max="10"
+                  />
+                  <button
+                    type="button"
+                    onClick={incrementSets}
+                    className="bg-solarized-base1/30 text-solarized-base01 border-none p-2 rounded-lg cursor-pointer transition-all duration-200 ease-in-out hover:bg-solarized-base1/50 hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={addExerciseWithSets}
+                disabled={!selectedExerciseId || numberOfSets < 1 || searchFilteredExercises.length === 0}
+                className="bg-solarized-green text-solarized-base3 border-none py-2 px-4 rounded-lg cursor-pointer font-semibold transition-all duration-200 ease-in-out hover:bg-solarized-green/90 hover:-translate-y-0.5 active:translate-y-0 disabled:bg-solarized-base1 disabled:cursor-not-allowed disabled:text-solarized-base01 disabled:hover:translate-y-0 min-h-12"
+              >
+                Add {numberOfSets} Set{numberOfSets !== 1 ? 's' : ''}
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddExercise(false);
+                  setSearchQuery('');
+                }}
+                className="bg-solarized-base1 text-solarized-base02 border-none py-2 px-4 rounded-lg cursor-pointer font-semibold transition-all duration-200 ease-in-out hover:bg-solarized-base0 hover:-translate-y-0.5 active:translate-y-0 min-h-12"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Workout Notes */}
+      <div className="bg-solarized-base2 rounded-xl p-4 shadow-lg border border-solarized-base1">
+        <label className="block text-sm font-medium text-solarized-base01 mb-2">
+          Workout Notes
+        </label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="w-full p-3 border border-solarized-base1 rounded-lg focus:ring-2 focus:ring-solarized-blue focus:border-transparent bg-solarized-base3 text-solarized-base02"
+          placeholder="How was your workout today?"
+          rows={3}
+        />
+      </div>
+
+      {/* Action Buttons */}
+      {sets.length > 0 && (
+        <div className="flex gap-3">
+          <button
+            onClick={handleSave}
+            className="flex-1 bg-solarized-green text-solarized-base3 border-none py-3 px-4 rounded-lg cursor-pointer font-semibold transition-all duration-200 ease-in-out hover:bg-solarized-green/90 hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 min-h-12"
+          >
+            <Save size={20} />
+            {todaysWorkout ? 'Update Workout' : 'Save Workout'}
+          </button>
+          <button
+            onClick={resetWorkout}
+            className="bg-solarized-base1 text-solarized-base02 border-none px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ease-in-out hover:bg-solarized-base0 hover:-translate-y-0.5 active:translate-y-0 min-h-12"
+          >
+            <RotateCcw size={20} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
