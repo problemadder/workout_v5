@@ -37,13 +37,13 @@ function App() {
     onSwipedLeft: () => {
       const currentIndex = TABS.findIndex(t => t.id === activeTab);
       if (currentIndex < TABS.length - 1) {
-        setActiveTab(TABS[currentIndex + 1].id);
+        handleTabChange(TABS[currentIndex + 1].id);
       }
     },
     onSwipedRight: () => {
       const currentIndex = TABS.findIndex(t => t.id === activeTab);
       if (currentIndex > 0) {
-        setActiveTab(TABS[currentIndex - 1].id);
+        handleTabChange(TABS[currentIndex - 1].id);
       }
     },
     trackMouse: false
