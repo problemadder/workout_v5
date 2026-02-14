@@ -113,6 +113,7 @@ export function exportSummaryToCSV(workouts: Workout[], exercises: Exercise[]): 
     'Date',
     'Total Sets',
     'Total Reps',
+    'Workout Duration',
     'Muscle Groups Trained',
     'Exercises Used',
     'Workout Notes'
@@ -142,10 +143,29 @@ export function exportSummaryToCSV(workouts: Workout[], exercises: Exercise[]): 
       return exercise?.category || 'unknown';
     }))].join('; ');
 
+    // Calculate workout duration
+    let durationDisplay = '';
+    const setsWithTimestamps = workout.sets.filter(s => s.completedAt);
+    if (setsWithTimestamps.length >= 2) {
+      const timestamps = setsWithTimestamps.map(s => new Date(s.completedAt!).getTime());
+      const minTime = Math.min(...timestamps);
+      const maxTime = Math.max(...timestamps);
+      const durationMs = maxTime - minTime;
+
+      // Only show if duration is <= 2 hours (same logic as Dashboard)
+      if (durationMs <= 2 * 60 * 60 * 1000) {
+        const totalMinutes = Math.floor(durationMs / (1000 * 60));
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        durationDisplay = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      }
+    }
+
     rows.push([
       formattedDate,
       totalSets.toString(),
       totalReps.toString(),
+      durationDisplay,
       uniqueMuscleGroups,
       uniqueExercises,
       workout.notes || ''
