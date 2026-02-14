@@ -24,7 +24,7 @@ export function PieChart({ data, size = 200, emptyMessage = 'No data' }: PieChar
 
   const chartData = useMemo(() => {
     if (total === 0) return [];
-    
+
     return validData.map(item => ({
       ...item,
       percentage: (item.value / total) * 100
@@ -43,23 +43,23 @@ export function PieChart({ data, size = 200, emptyMessage = 'No data' }: PieChar
       const angle = (item.value / total) * 360;
       const startAngle = currentAngle;
       const endAngle = currentAngle + angle;
-      
+
       // Calculate path for donut segment
       const startRad = (startAngle * Math.PI) / 180;
       const endRad = (endAngle * Math.PI) / 180;
-      
+
       const x1 = center + radius * Math.cos(startRad);
       const y1 = center + radius * Math.sin(startRad);
       const x2 = center + radius * Math.cos(endRad);
       const y2 = center + radius * Math.sin(endRad);
-      
+
       const x3 = center + innerRadius * Math.cos(endRad);
       const y3 = center + innerRadius * Math.sin(endRad);
       const x4 = center + innerRadius * Math.cos(startRad);
       const y4 = center + innerRadius * Math.sin(startRad);
-      
+
       const largeArcFlag = angle > 180 ? 1 : 0;
-      
+
       const path = [
         `M ${x1} ${y1}`,
         `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
@@ -99,9 +99,9 @@ export function PieChart({ data, size = 200, emptyMessage = 'No data' }: PieChar
 
   if (total === 0) {
     return (
-      <div 
+      <div
         className="flex items-center justify-center bg-solarized-base1/10 rounded-full"
-        style={{ width: size, height: size }}
+        style={{ width: `${size / 16}rem`, height: `${size / 16}rem` }}
       >
         <span className="text-sm text-solarized-base01 text-center px-4">
           {emptyMessage}
@@ -115,8 +115,7 @@ export function PieChart({ data, size = 200, emptyMessage = 'No data' }: PieChar
   return (
     <div className="flex flex-col items-center">
       <svg
-        width={size}
-        height={size}
+        style={{ width: `${size / 16}rem`, height: `${size / 16}rem` }}
         viewBox={`0 0 ${size} ${size}`}
         className="cursor-pointer"
         role="img"
@@ -125,7 +124,7 @@ export function PieChart({ data, size = 200, emptyMessage = 'No data' }: PieChar
         {segments.map((segment, index) => {
           const isHovered = hoveredIndex === index;
           const scale = isHovered ? 1.05 : 1;
-          
+
           // Calculate translation for hover effect
           const midRad = (segment.midAngle * Math.PI) / 180;
           const translateX = isHovered ? Math.cos(midRad) * 3 : 0;
@@ -147,14 +146,14 @@ export function PieChart({ data, size = 200, emptyMessage = 'No data' }: PieChar
             />
           );
         })}
-        
+
         {/* Center text showing total */}
         <text
           x={center}
           y={center - 5}
           textAnchor="middle"
           className="fill-solarized-base02 text-sm font-semibold"
-          style={{ fontSize: '14px' }}
+          style={{ fontSize: '0.875rem' }}
         >
           {total}
         </text>
@@ -163,7 +162,7 @@ export function PieChart({ data, size = 200, emptyMessage = 'No data' }: PieChar
           y={center + 12}
           textAnchor="middle"
           className="fill-solarized-base01 text-xs"
-          style={{ fontSize: '10px' }}
+          style={{ fontSize: '0.625rem' }}
         >
           sets
         </text>
@@ -174,9 +173,8 @@ export function PieChart({ data, size = 200, emptyMessage = 'No data' }: PieChar
         {chartData.map((item, index) => (
           <div
             key={index}
-            className={`flex items-center gap-2 text-sm cursor-pointer transition-opacity duration-200 ${
-              hoveredIndex !== null && hoveredIndex !== index ? 'opacity-40' : 'opacity-100'
-            }`}
+            className={`flex items-center gap-2 text-sm cursor-pointer transition-opacity duration-200 ${hoveredIndex !== null && hoveredIndex !== index ? 'opacity-40' : 'opacity-100'
+              }`}
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
           >

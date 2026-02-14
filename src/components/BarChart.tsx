@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 type TrendDirection = 'improving' | 'declining' | 'stable' | 'insufficient';
@@ -115,7 +115,7 @@ export function BarChart({ data, categories, trendData, title, emptyMessage }: B
             {categoryTrend && categoryTrend.trend !== 'insufficient' && (
               <div className="flex items-center justify-between mt-1">
                 <span className="text-solarized-base01 text-xs">Trend:</span>
-                <div className="flex items-center gap-1 min-w-[100px] justify-end">
+                <div className="flex items-center gap-1 min-w-[6.25rem] justify-end">
                   {categoryTrend?.trend === 'improving' && (
                     <>
                       <TrendingUp size={14} className="text-solarized-green" />

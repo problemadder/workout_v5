@@ -1,3 +1,16 @@
+:root {
+  --scale-multiplier: 1;
+  font-size: calc(16px * var(--scale-multiplier));
+  transition: font-size 0.2s ease;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    /* Ensure the root element respects the font size */
+    font-size: calc(16px * var(--scale-multiplier));
+  }
+}

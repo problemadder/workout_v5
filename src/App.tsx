@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Navigation } from './components/Navigation';
 import { Dashboard } from './components/Dashboard';
 import { ExerciseList } from './components/ExerciseList';
@@ -16,7 +16,10 @@ import { durationToSeconds } from './utils/durationUtils';
 
 import { migrateExercises } from './utils/dataUtils';
 
+import { useUiScale } from './hooks/useUiScale';
+
 function App() {
+  useUiScale(); // Initialize UI scale
   const [activeTab, setActiveTab] = useState('dashboard');
   const [exercises, setExercises] = useLocalStorage<Exercise[]>('abs-exercises', []);
   const [workouts, setWorkouts] = useLocalStorage<Workout[]>('abs-workouts', []);
@@ -27,7 +30,7 @@ function App() {
     notes: string;
   } | null>(null);
   const [pendingTemplate, setPendingTemplate] = useState<WorkoutTemplate | null>(null);
-  const draftSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const draftSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initialize default exercises if none exist, and migrate existing data
   useEffect(() => {

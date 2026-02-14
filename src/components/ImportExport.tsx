@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Upload, Download, FileText, AlertCircle, CheckCircle, X, RotateCcw, Dumbbell } from 'lucide-react';
+import { Upload, Download, FileText, AlertCircle, CheckCircle, X, RotateCcw, Dumbbell, Monitor } from 'lucide-react';
 import { Exercise, Workout, WorkoutTarget } from '../types';
 import { parseExercisesCSV, parseWorkoutsCSV, generateExerciseCSVTemplate, generateWorkoutCSVTemplate } from '../utils/csvImport';
 import { exportWorkoutsToCSV, exportSummaryToCSV, exportExercisesToCSV, exportTargetsToCSV } from '../utils/csvExport';
 import { parseTargetsCSV, generateTargetCSVTemplate } from '../utils/csvImport';
+import { useUiScale } from '../hooks/useUiScale';
 
 interface ImportExportProps {
   exercises: Exercise[];
@@ -22,6 +23,7 @@ export function ImportExport({ exercises, workouts, targets, onImportExercises, 
   } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const { scale, setScale } = useUiScale();
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'exercises' | 'workouts' | 'targets') => {
     const file = event.target.files?.[0];
@@ -218,10 +220,10 @@ export function ImportExport({ exercises, workouts, targets, onImportExercises, 
       {/* Status Message */}
       {importStatus && (
         <div className={`p-4 rounded-lg border flex items-center gap-3 ${importStatus.type === 'success'
-            ? 'bg-solarized-green/10 border-solarized-green/20 text-solarized-green'
-            : importStatus.type === 'error'
-              ? 'bg-solarized-red/10 border-solarized-red/20 text-solarized-red'
-              : 'bg-solarized-blue/10 border-solarized-blue/20 text-solarized-blue'
+          ? 'bg-solarized-green/10 border-solarized-green/20 text-solarized-green'
+          : importStatus.type === 'error'
+            ? 'bg-solarized-red/10 border-solarized-red/20 text-solarized-red'
+            : 'bg-solarized-blue/10 border-solarized-blue/20 text-solarized-blue'
           }`}>
           {importStatus.type === 'success' && <CheckCircle size={20} />}
           {importStatus.type === 'error' && <AlertCircle size={20} />}
@@ -399,6 +401,36 @@ export function ImportExport({ exercises, workouts, targets, onImportExercises, 
         <p className="text-sm text-solarized-base01 mt-3">
           Detailed export includes every set for accurate max/average calculations. Summary export shows daily totals. Exercise export includes all your created exercises. Target export includes all your workout targets.
         </p>
+      </div>
+
+      {/* Display Settings */}
+      <div className="bg-solarized-base2 rounded-xl p-6 shadow-lg border border-solarized-base1">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-solarized-base02">
+          <Monitor size={20} className="text-solarized-magenta" />
+          Display Settings
+        </h3>
+
+        <div className="space-y-3">
+          <h4 className="font-medium text-solarized-base02">UI Scale</h4>
+          <p className="text-sm text-solarized-base01">
+            Adjust the size of the interface elements.
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            {[0.9, 1, 1.1, 1.25, 1.5].map((value) => (
+              <button
+                key={value}
+                onClick={() => setScale(value)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${scale === value
+                  ? 'bg-solarized-magenta text-solarized-base3 border-solarized-magenta/50'
+                  : 'bg-solarized-base1/10 text-solarized-base01 border-solarized-base1/20 hover:bg-solarized-base1/20'
+                  }`}
+              >
+                {value}x
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Reset App Section */}

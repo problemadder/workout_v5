@@ -70,11 +70,10 @@ export function ExerciseConsistencyChart({
           <button
             key={p}
             onClick={() => onPeriodChange(p)}
-            className={`flex-none sm:flex-1 min-w-[120px] shrink-0 py-2 px-3 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
-              period === p
+            className={`flex-none sm:flex-1 min-w-[7.5rem] shrink-0 py-2 px-3 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${period === p
                 ? 'bg-solarized-base3 text-solarized-blue shadow-sm'
                 : 'text-solarized-base01 hover:text-solarized-base02'
-            }`}
+              }`}
           >
             {periodLabels[p]}
           </button>
@@ -106,7 +105,7 @@ export function ExerciseConsistencyChart({
 
         {trend && period === '4months' && (
           <div
-            className={`flex items-center gap-1.5 text-sm font-medium min-w-[120px] whitespace-nowrap ${trendConfig[trend.direction].color}`}
+            className={`flex items-center gap-1.5 text-sm font-medium min-w-[7.5rem] whitespace-nowrap ${trendConfig[trend.direction].color}`}
             title={
               trend.direction === 'insufficient'
                 ? trendConfig[trend.direction].label
@@ -131,7 +130,7 @@ export function ExerciseConsistencyChart({
             Rest Days Distribution
           </h4>
           <div className="overflow-x-auto">
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 min-w-[300px]">
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 min-w-[18.75rem]">
               {distributionEntries.map(([days, count]) => {
                 const percentage = (count / maxDistribution) * 100;
                 const label = `${days} ${days === 1 ? 'day' : 'days'}: ${count} ${count === 1 ? 'time' : 'times'}`;
