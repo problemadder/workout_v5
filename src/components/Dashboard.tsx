@@ -220,6 +220,33 @@ export function Dashboard({ workouts, onStartWorkout, onUseWorkout, exercises }:
                           <p className="text-sm text-solarized-base01">
                             {workout.sets.length} sets completed
                           </p>
+                          {(() => {
+                            const setsWithTimestamps = workout.sets.filter(s => s.completedAt);
+                            if (setsWithTimestamps.length >= 2) {
+                              const timestamps = setsWithTimestamps.map(s => new Date(s.completedAt!).getTime());
+                              const minTime = Math.min(...timestamps);
+                              const maxTime = Math.max(...timestamps);
+                              const durationMs = maxTime - minTime;
+
+                              // If duration is longer than 2 hours, it likely means multiple sessions
+                              // or a forgotten active session, so don't show it
+                              if (durationMs > 2 * 60 * 60 * 1000) {
+                                return null;
+                              }
+
+                              const totalMinutes = Math.floor(durationMs / (1000 * 60));
+                              const hours = Math.floor(totalMinutes / 60);
+                              const minutes = totalMinutes % 60;
+                              const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+                              return (
+                                <p className="text-sm text-solarized-base01">
+                                  Workout time: {formattedTime}
+                                </p>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                         <button
                           onClick={() => onUseWorkout(workout)}

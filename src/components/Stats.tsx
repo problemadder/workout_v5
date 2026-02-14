@@ -1064,24 +1064,7 @@ export function Stats({ workouts, exercises }: StatsProps) {
         </h3>
         <div className="space-y-3">
           {weeklyData.map((day, index) => {
-            // Get workouts for this day
-            const dayWorkouts = workouts.filter(w =>
-              new Date(w.date).toDateString() === day.date.toDateString()
-            );
 
-            // Calculate total duration from time-based exercises
-            const totalDurationSeconds = dayWorkouts.reduce((total, workout) => {
-              return total + workout.sets.reduce((setTotal, set) => {
-                const exercise = exercises.find(e => e.id === set.exerciseId);
-                if (exercise?.exerciseType === 'time' && set.duration) {
-                  return setTotal + durationToSeconds(set.duration);
-                }
-                return setTotal;
-              }, 0);
-            }, 0);
-
-            const hasTimeExercises = totalDurationSeconds > 0;
-            const durationDisplay = formatDurationDisplay(totalDurationSeconds);
 
             return (
               <div key={index} className="flex items-center gap-3">
@@ -1103,13 +1086,6 @@ export function Stats({ workouts, exercises }: StatsProps) {
                       {day.sets > 0 ? `${day.sets} sets` : 'Rest'}
                     </span>
                   </div>
-                </div>
-                <div className="w-20 text-xs text-solarized-base01 text-right">
-                  {hasTimeExercises ? (
-                    <span className="text-solarized-cyan">{durationDisplay}</span>
-                  ) : day.reps > 0 ? (
-                    `${day.reps} reps`
-                  ) : ''}
                 </div>
               </div>
             );
