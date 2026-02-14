@@ -1,7 +1,7 @@
 # Workout Tracker - Complete Project Recreation Prompt
 
 ## Project Overview
-Create a comprehensive workout tracking Progressive Web App (PWA) using React, TypeScript, and Tailwind CSS. The app should be a mobile-first fitness tracker that allows users to log workouts, manage exercises, create templates, set targets, view statistics, and import/export data.
+Create a comprehensive workout tracking Progressive Web App (PWA) using React, TypeScript, and Tailwind CSS. The app should be a mobile-first fitness tracker that allows users to log workouts (reps or time-based), manage exercises, create templates, set targets, view deep analytics, and customize their experience.
 
 ## Technology Stack
 - **Frontend**: React 18 + TypeScript
@@ -9,7 +9,7 @@ Create a comprehensive workout tracking Progressive Web App (PWA) using React, T
 - **Build Tool**: Vite
 - **PWA**: vite-plugin-pwa for offline capabilities
 - **Icons**: Lucide React
-- **Storage**: localStorage with custom React hook
+- **Storage**: localStorage with custom React hooks
 - **Linting**: ESLint with TypeScript support
 
 ## Color Scheme
@@ -33,6 +33,7 @@ interface Exercise {
   name: string;
   description?: string;
   category: 'abs' | 'legs' | 'arms' | 'back' | 'shoulders' | 'chest' | 'cardio' | 'full-body';
+  exerciseType: 'reps' | 'time'; // Support for time-based exercises (e.g., Planks)
   createdAt: Date;
 }
 ```
@@ -43,7 +44,9 @@ interface WorkoutSet {
   id: string;
   exerciseId: string;
   reps: number;
+  duration?: string; // Format: "MM:SS" for time-based exercises
   notes?: string;
+  completedAt?: Date; // Timestamp for duration calculation
 }
 ```
 
@@ -67,6 +70,7 @@ interface WorkoutTemplate {
     sets: number;
   }[];
   createdAt: Date;
+  lastUsedAt?: Date;
 }
 ```
 
@@ -91,7 +95,7 @@ interface WorkoutTarget {
 - Use localStorage hooks for data persistence
 - Manage 7 main tabs: Dashboard, Exercises, Templates, Workout, Targets, Stats, Import
 - Handle auto-save functionality for pending workouts
-- Calculate comprehensive workout statistics
+- **UI Scaling**: Implement a global scaling context to allow users to adjust app size (0.9x to 1.5x)
 
 ### Navigation Component
 Create a fixed bottom navigation with 7 tabs:
@@ -108,6 +112,7 @@ Display:
 - Training percentages for current week, month, and year
 - Today's workout status (completed or not started)
 - Recent workout activity (last 5 workouts)
+- **Workout Duration**: Display calculated duration for recent workouts (if < 2 hours)
 - Quick start workout button
 - Last workout information with days ago
 
@@ -119,26 +124,30 @@ Features:
 - Category filtering with exercise counts
 - Alphabetical sorting
 - 8 predefined categories with color coding
+- **Exercise Types**: Toggle between 'reps' and 'time' based exercises
 - Search and filter functionality
 - Responsive card layout
 
 ### Workout Logger Component
 The main workout interface should include:
 - Exercise selection with search and category filtering
-- Dynamic set addition with rep tracking
+- Dynamic set addition
+- **Input Types**: 
+  - Number input for 'reps' based exercises
+  - Duration input (MM:SS) for 'time' based exercises
+- **Real-time Stats**: 
+  - Show Max (↑) and Average (⌀) values as placeholders
+  - **Rolling Window**: Calculate these stats based only on the last 3 months (90 days)
 - Exercise grouping by consecutive sets
-- Real-time max/average rep display as placeholders
 - Template integration (use and save)
 - Auto-save functionality
 - Notes for workouts
-- Responsive design for mobile use
 
 Key features:
 - Group consecutive sets of the same exercise together
 - Show set numbers within each exercise group
-- Display historical max and average reps for each set position
+- Display historical max and average reps/time for each set position
 - Allow adding individual sets or multiple sets at once
-- Smart exercise selection that auto-updates when filtering
 
 ### Template Manager Component
 Features:
@@ -160,11 +169,12 @@ Implement goal tracking with:
 ### Statistics Dashboard Component
 Comprehensive analytics including:
 - Training percentages (week, month, year)
+- **Consistency Charts**: Visual heatmap/grid of workout consistency
 - Last 7 days activity visualization
 - Exercise year-over-year comparisons
 - Yearly training percentage charts
 - Monthly training comparison charts
-- Max reps over time progression charts
+- Max reps/duration over time progression charts
 - Sets per category breakdowns
 - Most used exercises rankings
 - Exercise-specific statistics with filtering
@@ -172,28 +182,31 @@ Comprehensive analytics including:
 ### Import/Export System
 CSV functionality for:
 - Exercise import/export with templates
-- Workout history import/export (detailed and summary)
+- Workout history import/export (detailed and **summary with duration**)
 - Target import/export
 - Template import/export
 - Data validation and error handling
-- App reset functionality
+- **App Reset**: functionality to clear all data
+- **UI Scaling**: Settings to adjust global usage scale
 
 ## Key Features to Implement
 
 ### 1. Workout Logging
 - Mobile-first interface optimized for quick logging
+- Support for both Reps and Time-based exercises
 - Exercise search with auto-complete
 - Set grouping by exercise
-- Real-time statistics display
+- Real-time statistics display (3-month rolling window)
 - Template integration
 - Auto-save functionality
 
 ### 2. Progress Tracking
-- Max rep tracking by set position
-- Average rep calculations
+- Max rep/time tracking by set position
+- Average rep/time calculations
 - Training frequency percentages
 - Streak calculations (current and longest)
 - Year-over-year comparisons
+- **Consistency Visualization**: GitHub-style contribution graphs or similar
 
 ### 3. Data Management
 - localStorage persistence
@@ -203,6 +216,7 @@ CSV functionality for:
 
 ### 4. User Experience
 - Responsive design (mobile-first)
+- **UI Scaling**: Accessibility feature to scale the entire UI
 - Intuitive navigation
 - Quick actions and shortcuts
 - Visual feedback and animations
@@ -228,6 +242,7 @@ Implement date formatting and comparison functions:
 - getDaysAgo() - Calculate days between dates
 
 ### Statistics Calculations
+- **Rolling Window**: Implement logic to calculate stats based on a specific timeframe (e.g., last 3 months).
 - Training percentages for different periods
 - Streak calculations
 - Max/average rep tracking by set position
@@ -240,6 +255,7 @@ Robust CSV import/export with:
 - Header validation and flexible matching
 - Error reporting and data validation
 - Template generation for user guidance
+- **Summary Export**: Include calculated workout durations in summary exports
 
 ### PWA Configuration
 Set up service worker with:
@@ -278,6 +294,7 @@ Set up service worker with:
 - Props drilling for component communication
 - localStorage for persistence
 - Auto-save for workout data
+- **UI Context**: Global context for UI scaling state
 
 ### Component Communication
 - Parent-child prop passing
@@ -306,5 +323,6 @@ Set up service worker with:
 - Cross-browser compatibility
 - Mobile responsiveness testing
 - PWA installation and offline testing
+- Verification of time-based exercise logic
 
 This prompt provides a complete blueprint for recreating the workout tracker application with all its features, technical specifications, and implementation details.
