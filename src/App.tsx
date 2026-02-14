@@ -17,10 +17,38 @@ import { durationToSeconds } from './utils/durationUtils';
 import { migrateExercises } from './utils/dataUtils';
 
 import { useUiScale } from './hooks/useUiScale';
+import { useSwipeable } from 'react-swipeable';
+import { AnimatePresence, motion } from 'framer-motion';
+import { TABS, TabId } from './constants/navigation';
 
 function App() {
   useUiScale(); // Initialize UI scale
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTabState] = useState<TabId>('dashboard');
+  const [direction, setDirection] = useState(0);
+
+  const setActiveTab = (newTab: TabId) => {
+    const currentIndex = TABS.findIndex(t => t.id === activeTab);
+    const nextIndex = TABS.findIndex(t => t.id === newTab);
+    setDirection(nextIndex > currentIndex ? 1 : -1);
+    setActiveTabState(newTab);
+  };
+
+  const handleSwipe = useSwipeable({
+    onSwipedLeft: () => {
+      const currentIndex = TABS.findIndex(t => t.id === activeTab);
+      if (currentIndex < TABS.length - 1) {
+        setActiveTab(TABS[currentIndex + 1].id);
+      }
+    },
+    onSwipedRight: () => {
+      const currentIndex = TABS.findIndex(t => t.id === activeTab);
+      if (currentIndex > 0) {
+        setActiveTab(TABS[currentIndex - 1].id);
+      }
+    },
+    trackMouse: false
+  });
+
   const [exercises, setExercises] = useLocalStorage<Exercise[]>('abs-exercises', []);
   const [workouts, setWorkouts] = useLocalStorage<Workout[]>('abs-workouts', []);
   const [templates, setTemplates] = useLocalStorage<WorkoutTemplate[]>('abs-templates', []);
@@ -349,7 +377,7 @@ function App() {
       }
     }
 
-    setActiveTab(newTab);
+    setActiveTab(newTab as TabId);
   };
 
   const handleWorkoutDataChange = (sets: Array<{ exerciseId: string; reps: number }>, notes: string) => {
@@ -399,81 +427,92 @@ function App() {
 
   return (
     <div className="min-h-screen bg-solarized-base3">
-      <main className="relative">
-        {activeTab === 'dashboard' && (
-          <Dashboard
-            workouts={sortedWorkouts}
-            stats={stats}
-            onStartWorkout={handleStartWorkout}
-            onUseWorkout={handleUseWorkout}
-            exercises={exercises}
-          />
-        )}
+      <main className="relative" {...handleSwipe}>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={activeTab}
+            initial={{ x: direction * 10, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: direction * -10, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="w-full"
+          >
+            {activeTab === 'dashboard' && (
+              <Dashboard
+                workouts={sortedWorkouts}
+                stats={stats}
+                onStartWorkout={handleStartWorkout}
+                onUseWorkout={handleUseWorkout}
+                exercises={exercises}
+              />
+            )}
 
-        {activeTab === 'workout' && (
-          <WorkoutLogger
-            exercises={exercises}
-            todaysWorkout={todaysWorkout || null}
-            workouts={workouts}
-            templates={templates}
-            pendingTemplate={pendingTemplate}
-            onSaveWorkout={handleSaveWorkout}
-            onUpdateWorkout={handleUpdateWorkout}
-            onDeleteWorkout={handleDeleteWorkout}
-            onAddTemplate={handleAddTemplate}
-            onWorkoutDataChange={handleWorkoutDataChange}
-            onTemplateClear={() => setPendingTemplate(null)}
-          />
-        )}
+            {activeTab === 'workout' && (
+              <WorkoutLogger
+                exercises={exercises}
+                todaysWorkout={todaysWorkout || null}
+                workouts={workouts}
+                templates={templates}
+                pendingTemplate={pendingTemplate}
+                onSaveWorkout={handleSaveWorkout}
+                onUpdateWorkout={handleUpdateWorkout}
+                onDeleteWorkout={handleDeleteWorkout}
+                onAddTemplate={handleAddTemplate}
+                onWorkoutDataChange={handleWorkoutDataChange}
+                onTemplateClear={() => setPendingTemplate(null)}
+              />
+            )}
 
-        {activeTab === 'stats' && (
-          <Stats
-            workouts={sortedWorkouts}
-            exercises={exercises}
-          />
-        )}
+            {activeTab === 'stats' && (
+              <Stats
+                workouts={sortedWorkouts}
+                exercises={exercises}
+              />
+            )}
 
-        {activeTab === 'targets' && (
-          <Targets
-            targets={targets}
-            exercises={exercises}
-            workouts={workouts}
-            onAddTarget={handleAddTarget}
-            onEditTarget={handleEditTarget}
-            onDeleteTarget={handleDeleteTarget}
-          />
-        )}
+            {activeTab === 'targets' && (
+              <Targets
+                targets={targets}
+                exercises={exercises}
+                workouts={workouts}
+                onAddTarget={handleAddTarget}
+                onEditTarget={handleEditTarget}
+                onDeleteTarget={handleDeleteTarget}
+              />
+            )}
 
-        {activeTab === 'exercises' && (
-          <ExerciseList
-            exercises={exercises}
-            onAddExercise={handleAddExercise}
-            onEditExercise={handleEditExercise}
-            onDeleteExercise={handleDeleteExercise}
-          />
-        )}
+            {activeTab === 'exercises' && (
+              <ExerciseList
+                exercises={exercises}
+                onAddExercise={handleAddExercise}
+                onEditExercise={handleEditExercise}
+                onDeleteExercise={handleDeleteExercise}
+              />
+            )}
 
-        {activeTab === 'templates' && (
-          <TemplateManager
-            templates={templates}
-            exercises={exercises}
-            onAddTemplate={handleAddTemplate}
-            onEditTemplate={handleEditTemplate}
-            onDeleteTemplate={handleDeleteTemplate}
-            onUseTemplate={handleUseTemplate}
-          />
-        )}
+            {activeTab === 'templates' && (
+              <TemplateManager
+                templates={templates}
+                exercises={exercises}
+                onAddTemplate={handleAddTemplate}
+                onEditTemplate={handleEditTemplate}
+                onDeleteTemplate={handleDeleteTemplate}
+                onUseTemplate={handleUseTemplate}
+              />
+            )}
 
-        {activeTab === 'import' && (
-          <ImportExport
-            exercises={exercises}
-            workouts={workouts}
-            targets={targets}
-            onImportExercises={handleImportExercises}
-            onImportWorkouts={handleImportWorkouts}
-            onImportTargets={handleImportTargets}
-          />
-        )}
+            {activeTab === 'import' && (
+              <ImportExport
+                exercises={exercises}
+                workouts={workouts}
+                targets={targets}
+                onImportExercises={handleImportExercises}
+                onImportWorkouts={handleImportWorkouts}
+                onImportTargets={handleImportTargets}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       <Navigation activeTab={activeTab} onTabChange={handleTabChange} />
