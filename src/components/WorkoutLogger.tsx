@@ -302,7 +302,10 @@ export function WorkoutLogger({
 
       // Actually, let's calculate it here for now to be safe and explicit, similar to the original plan.
 
+      const cutoffDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+
       const relevantWorkouts = workouts.filter(w =>
+        new Date(w.date) >= cutoffDate &&
         w.sets.some(s => s.exerciseId === exerciseId)
       );
 
